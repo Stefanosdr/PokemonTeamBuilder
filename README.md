@@ -2,6 +2,8 @@
 
 A Streamlit-based application that generates random competitive Pokémon teams using Smogon strategies and uploads them to PokePaste.
 
+[**Try out the Live Demo!**](https://pokemonteambuilder-hjz5xux6cvpkxspdalnlzq.streamlit.app/)
+
 ## Features
 
 - **Random Team Generation**: Generates valid competitive teams for various tiers (e.g., OU) based on usage statistics and strategies.
