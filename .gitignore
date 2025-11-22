@@ -1,0 +1,29 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Scrapers and Helper Scripts (not needed for deployment)
+build_all_tier_strategies.py
+build_random_ou_team.py
+clean_ou_items.py
+create_db.py
+parse_results_html.py
+showdown_tiers_scrapper.py
+smogon_items_scraper.py
+smogon_strategies.py
+verify_app.py
+verify_db.py
+
+# Data generation artifacts
+results_pi.html
+sv_items.json
+tiers.json
+tier_strategies/
+pokepaste_guidelines.txt

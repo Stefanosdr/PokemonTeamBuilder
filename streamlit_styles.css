@@ -1,0 +1,100 @@
+.team-grid {
+  margin-top: 0.75rem;
+}
+
+.team-card {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.95),
+    rgba(30, 64, 175, 0.7)
+  );
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.65);
+  padding: 0.5rem 0.75rem 0.6rem;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+  margin-bottom: 0.9rem; /* vertical spacing between cards */
+}
+
+.team-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.5);
+  margin-bottom: 0.3rem;
+}
+
+.team-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.team-item {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.team-card-body {
+  display: grid;
+  grid-template-columns: auto auto auto; /* sprite | moves | EVs */
+  column-gap: 0.25rem; /* minimal space between moves and EVs */
+  align-items: flex-start;
+}
+
+.team-sprite img {
+  width: 72px;
+  height: 72px;
+  image-rendering: crisp-edges;
+}
+
+.sprite-info {
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+}
+
+.sprite-info-row {
+  white-space: nowrap;
+}
+
+.team-moves-col {
+  font-size: 0.78rem;
+}
+
+.team-moves-title,
+.team-evs-title {
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.team-moves {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+}
+
+.move-pill {
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  font-size: 0.72rem;
+}
+
+.team-evs-col {
+  font-size: 0.78rem;
+}
+
+.evs-block span {
+  display: block;
+}
+
+.team-evs-table {
+  margin-top: 0.1rem;
+}
+
+.team-evs-row {
+  white-space: nowrap;
+}
