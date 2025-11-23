@@ -11,6 +11,7 @@ from pokepaste_uploader import showdown_to_pokepaste
 
 
 TIER_ORDER = ["AG", "Uber", "OU", "UU", "RU", "NU", "PU", "ZU"]
+EXCLUDED_TIERS = ["NFE", "LC"]  # Tiers to exclude from higher tier team generation
 
 
 def _parse_showdown_team(team_text: str) -> list[dict]:
@@ -249,6 +250,8 @@ def _build_random_team_for_tier(tier: str, num_pokemon: int = 6, include_lower_t
         if include_lower_tiers and tier in TIER_ORDER:
             start_idx = TIER_ORDER.index(tier)
             allowed_tiers = TIER_ORDER[start_idx:]
+            # Remove excluded tiers (NFE, LC) from allowed tiers
+            allowed_tiers = [t for t in allowed_tiers if t not in EXCLUDED_TIERS]
             
         # Get all unique pokemon names in these tiers
         placeholders = ",".join("?" for _ in allowed_tiers)
