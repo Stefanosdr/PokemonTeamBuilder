@@ -10,6 +10,9 @@ from bs4 import BeautifulSoup
 from pokepaste_uploader import showdown_to_pokepaste
 
 
+TIER_ORDER = ["AG", "Uber", "OU", "UU", "RU", "NU", "PU", "ZU"]
+
+
 def _parse_showdown_team(team_text: str) -> list[dict]:
     """Parse the generated Showdown team text into per-Pokémon dicts.
 
@@ -103,9 +106,19 @@ def _load_available_tiers() -> list[str]:
     conn = _get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT tier FROM pokemon_builds ORDER BY tier")
+        cursor.execute("SELECT DISTINCT tier FROM pokemon_builds")
         tiers = [row["tier"] for row in cursor.fetchall()]
-        return tiers if tiers else ["OU"]
+        
+        # Sort tiers based on TIER_ORDER
+        # Filter out any tiers not in TIER_ORDER and append them at the end if any exist
+        known_tiers = [t for t in tiers if t in TIER_ORDER]
+        unknown_tiers = [t for t in tiers if t not in TIER_ORDER]
+        
+        known_tiers.sort(key=lambda t: TIER_ORDER.index(t))
+        unknown_tiers.sort()
+        
+        sorted_tiers = known_tiers + unknown_tiers
+        return sorted_tiers if sorted_tiers else ["OU"]
     except Exception:
         return ["OU"]
     finally:
@@ -222,27 +235,59 @@ def _get_random_build_from_db(conn, tier: str, pokemon_name: str) -> dict:
     return build_data
 
 
-def _build_random_team_for_tier(tier: str, num_pokemon: int = 6) -> str:
-    """Build a random team for the given tier using the database."""
+def _build_random_team_for_tier(tier: str, num_pokemon: int = 6, include_lower_tiers: bool = True) -> str:
+    """Build a random team for the given tier using the database.
+    
+    If include_lower_tiers is True, allows Pokemon from the selected tier and any lower tiers.
+    """
     conn = _get_db_connection()
     try:
         cursor = conn.cursor()
         
-        # Get all unique pokemon names in this tier
-        cursor.execute("SELECT DISTINCT pokemon_name FROM pokemon_builds WHERE tier = ?", (tier,))
+        # Determine allowed tiers
+        allowed_tiers = [tier]
+        if include_lower_tiers and tier in TIER_ORDER:
+            start_idx = TIER_ORDER.index(tier)
+            allowed_tiers = TIER_ORDER[start_idx:]
+            
+        # Get all unique pokemon names in these tiers
+        placeholders = ",".join("?" for _ in allowed_tiers)
+        query = f"SELECT DISTINCT pokemon_name FROM pokemon_builds WHERE tier IN ({placeholders})"
+        cursor.execute(query, allowed_tiers)
+        
         all_pokemon = [row["pokemon_name"] for row in cursor.fetchall()]
+        
+        # If strict matching (include_lower_tiers=False), we don't need extra filtering anymore
+        # because the database has been cleaned to only contain the native tier for each Pokemon.
+        # So if we query for tier='OU', we will only get Pokemon whose native tier is OU.
         
         if len(all_pokemon) < num_pokemon:
              # Fallback if not enough pokemon
              if not all_pokemon:
-                 raise ValueError(f"No Pokemon found in tier {tier}")
+                 raise ValueError(f"No Pokemon found in tiers {allowed_tiers}")
              chosen_names = all_pokemon # Take all if less than 6
         else:
             chosen_names = random.sample(all_pokemon, num_pokemon)
             
         team_sets: list[str] = []
         for name in chosen_names:
-            build_data = _get_random_build_from_db(conn, tier, name)
+            # For each chosen pokemon, we need to pick a build.
+            # If we are including lower tiers, the pokemon might exist in multiple allowed tiers.
+            # We should probably pick a build from the highest available tier for that pokemon, 
+            # or just random across allowed tiers. Random across allowed tiers is simpler and adds variety.
+            
+            # We need to find which tiers this pokemon has builds for, within our allowed list
+            cursor.execute(f"SELECT DISTINCT tier FROM pokemon_builds WHERE pokemon_name = ? AND tier IN ({placeholders})", 
+                           (name, *allowed_tiers))
+            available_tiers_for_mon = [row["tier"] for row in cursor.fetchall()]
+            
+            if not available_tiers_for_mon:
+                continue # Should not happen given previous query
+                
+            # Pick a random tier for this specific pokemon
+            chosen_tier = random.choice(available_tiers_for_mon)
+            
+            build_data = _get_random_build_from_db(conn, chosen_tier, name)
             if build_data:
                 team_sets.append(_build_showdown_set(name, build_data))
                 
@@ -252,12 +297,12 @@ def _build_random_team_for_tier(tier: str, num_pokemon: int = 6) -> str:
         conn.close()
 
 
-def generate_random_team_for_tier(tier: str) -> tuple[str, str]:
+def generate_random_team_for_tier(tier: str, include_lower_tiers: bool = True) -> tuple[str, str]:
     """Generate a random team for the given tier and upload to Pokepaste.
 
     Returns a tuple of (team_text, pokepaste_url).
     """
-    team_text = _build_random_team_for_tier(tier)
+    team_text = _build_random_team_for_tier(tier, include_lower_tiers=include_lower_tiers)
     url = showdown_to_pokepaste(
         team_text=team_text,
         title=f"Random {tier} Team",
@@ -269,7 +314,7 @@ def generate_random_team_for_tier(tier: str) -> tuple[str, str]:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Pokemon Team Builder MVP", layout="wide")
+    st.set_page_config(page_title="Pokemon Team Generator", layout="wide")
 
     # Load custom CSS for prettier team grid styling
     css_path = Path(__file__).with_name("streamlit_styles.css")
@@ -277,8 +322,14 @@ def main() -> None:
         css = css_path.read_text(encoding="utf-8")
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
-    st.title("Pokémon Team Builder MVP")
-    st.write("Generate a random team from your strategies database and upload it to Pokepaste.")
+    st.title("Pokemon Team Generator")
+    st.markdown(
+        """
+        Welcome to the **Pokemon Team Generator**! 🚀
+
+        Instantly create competitive teams for any tier. Simply select your desired tier, choose whether to include lower-tier Pokemon, and click **Generate**. Your team will be ready in seconds, complete with a Pokepaste link for easy export to Showdown.
+        """
+    )
 
     # Tier selector
     tiers = _load_available_tiers()
@@ -287,11 +338,13 @@ def main() -> None:
         tier_index = tiers.index("OU")
         
     tier = st.selectbox("Select tier", options=tiers, index=tier_index)
+    
+    include_lower = st.checkbox("Include Pokemon from lower tiers", value=True)
 
     if st.button("Generate random team"):
         with st.spinner("Generating team and uploading to Pokepaste..."):
             try:
-                team_text, paste_url = generate_random_team_for_tier(tier)
+                team_text, paste_url = generate_random_team_for_tier(tier, include_lower_tiers=include_lower)
             except Exception as exc:  # pragma: no cover - UI error path
                 st.error(f"Failed to generate team or upload to Pokepaste: {exc}")
                 return
