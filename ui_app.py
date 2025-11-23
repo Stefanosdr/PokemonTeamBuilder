@@ -1,6 +1,7 @@
 import json
 import random
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -377,13 +378,18 @@ def main() -> None:
         css = css_path.read_text(encoding="utf-8")
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
-    st.title("Pokemon Team Generator")
+    # Custom Header & Description
+    st.markdown('<h1 class="main-header">Pokemon Team Generator</h1>', unsafe_allow_html=True)
     st.markdown(
         """
-        Welcome to the **Pokemon Team Generator**! 🚀
-
-        Instantly create competitive teams for any tier. Simply select your desired tier, choose whether to include lower-tier Pokemon, and click **Generate**. Your team will be ready in seconds, complete with a Pokepaste link for easy export to Showdown.
-        """
+        <div class="main-description">
+            Welcome to the <strong>Pokemon Team Generator</strong>! 🚀<br>
+            Instantly create competitive teams for any tier. Simply select your desired tier, 
+            choose whether to include lower-tier Pokemon, and click <strong>Generate</strong>. 
+            Your team will be ready in seconds, complete with a Pokepaste link for easy export to Showdown.
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
     # Tier selector
@@ -392,11 +398,13 @@ def main() -> None:
     if "OU" in tiers:
         tier_index = tiers.index("OU")
         
-    tier = st.selectbox("Select tier", options=tiers, index=tier_index)
-    
-    include_lower = st.checkbox("Include Pokemon from lower tiers", value=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        tier = st.selectbox("Select tier", options=tiers, index=tier_index)
+        include_lower = st.checkbox("Include Pokemon from lower tiers", value=True)
+        generate_btn = st.button("Generate random team", use_container_width=True)
 
-    if st.button("Generate random team"):
+    if generate_btn:
         with st.spinner("Generating team and uploading to Pokepaste..."):
             try:
                 team_text, paste_url = generate_random_team_for_tier(tier, include_lower_tiers=include_lower)
@@ -413,107 +421,112 @@ def main() -> None:
         team_entries = _parse_showdown_team(team_text)
         image_urls = _fetch_pokemon_image_urls_from_pokepaste(paste_url)
 
-        # 2x3 grid layout for the team, wrapped in a styled container
-        st.markdown('<div class="team-grid">', unsafe_allow_html=True)
-        rows = 2
-        cols_per_row = 3
-        idx = 0
-        for _ in range(rows):
-            cols = st.columns(cols_per_row)
-            for col in cols:
-                if idx >= len(team_entries):
-                    break
-                entry = team_entries[idx]
-                img_url = image_urls[idx] if idx < len(image_urls) else None
-                with col:
-                    moves_html = "".join(
-                        f"<span class='move-pill'>{m}</span>" for m in entry["moves"]
+        # Generate HTML for the grid
+        grid_html = '<div class="team-grid-container">'
+        
+        for idx, entry in enumerate(team_entries):
+            img_url = image_urls[idx] if idx < len(image_urls) else None
+            
+            moves_html = "".join(
+                f"<span class='move-pill'>{m}</span>" for m in entry["moves"]
+            )
+
+            # Build a Showdown-inspired card layout
+            card_html = "<div class='team-card'>"
+            card_html += "<div class='team-card-header'>"
+            card_html += f"<span class='team-name'>{entry['name']}</span>"
+            card_html += "</div>"  # header
+
+            card_html += "<div class='team-card-body'>"
+
+            # LEFT COLUMN: sprite + basic info
+            card_html += "<div>"  # left col wrapper
+            if img_url:
+                card_html += "<div class='team-sprite'>"
+                card_html += f"<img src='{img_url}' alt='{entry['name']}'>"
+                card_html += "</div>"
+            if any([entry["item"], entry["ability"], entry["tera_type"], entry["nature"]]):
+                card_html += "<div class='sprite-info'>"
+                if entry["item"]:
+                    card_html += (
+                        "<div class='sprite-info-row'><span class='detail-label'>Item:</span>"
+                        f"<span>{entry['item']}</span></div>"
                     )
+                if entry["ability"]:
+                    card_html += (
+                        "<div class='sprite-info-row'><span class='detail-label'>Ability:</span>"
+                        f"<span>{entry['ability']}</span></div>"
+                    )
+                if entry["tera_type"]:
+                    card_html += (
+                        "<div class='sprite-info-row'><span class='detail-label'>Tera:</span>"
+                        f"<span>{entry['tera_type']}</span></div>"
+                    )
+                if entry["nature"]:
+                    card_html += (
+                        "<div class='sprite-info-row'><span class='detail-label'>Nature:</span>"
+                        f"<span>{entry['nature'].replace('Nature: ', '')}</span></div>"
+                    )
+                card_html += "</div>"  # sprite-info
+            card_html += "</div>"  # left col
 
-                    # Build a Showdown-inspired card layout
-                    card_html = "<div class='team-card'>"
-                    card_html += "<div class='team-card-header'>"
-                    card_html += f"<span class='team-name'>{entry['name']}</span>"
-                    card_html += "</div>"  # header
+            # MIDDLE COLUMN: moves
+            card_html += "<div class='team-moves-col'>"
+            card_html += "<div class='team-moves-title'>Moves</div>"
+            if moves_html:
+                card_html += f"<div class='team-moves'>{moves_html}</div>"
+            card_html += "</div>"  # moves col
 
-                    card_html += "<div class='team-card-body'>"
+            # RIGHT COLUMN: EVs as labeled rows
+            card_html += "<div class='team-evs-col'>"
+            card_html += "<div class='team-evs-title'>EVs</div>"
+            if entry["evs"]:
+                raw = entry["evs"].replace("EVs: ", "")
+                parts = [p for p in raw.split(" / ") if p]
+                evs_map = {"HP": 0, "Atk": 0, "Def": 0, "SpA": 0, "SpD": 0, "Spe": 0}
+                for p in parts:
+                    sub = p.split()
+                    if len(sub) != 2:
+                        continue
+                    try:
+                        val = int(sub[0])
+                    except ValueError:
+                        continue
+                    stat = sub[1]
+                    if stat in evs_map:
+                        evs_map[stat] = val
 
-                    # LEFT COLUMN: sprite + basic info
-                    card_html += "<div>"  # left col wrapper
-                    if img_url:
-                        card_html += "<div class='team-sprite'>"
-                        card_html += f"<img src='{img_url}' alt='{entry['name']}'>"
-                        card_html += "</div>"
-                    if any([entry["item"], entry["ability"], entry["tera_type"], entry["nature"]]):
-                        card_html += "<div class='sprite-info'>"
-                        if entry["item"]:
-                            card_html += (
-                                "<div class='sprite-info-row'><span class='detail-label'>Item:</span>"
-                                f"<span>{entry['item']}</span></div>"
-                            )
-                        if entry["ability"]:
-                            card_html += (
-                                "<div class='sprite-info-row'><span class='detail-label'>Ability:</span>"
-                                f"<span>{entry['ability']}</span></div>"
-                            )
-                        if entry["tera_type"]:
-                            card_html += (
-                                "<div class='sprite-info-row'><span class='detail-label'>Tera:</span>"
-                                f"<span>{entry['tera_type']}</span></div>"
-                            )
-                        if entry["nature"]:
-                            card_html += (
-                                "<div class='sprite-info-row'><span class='detail-label'>Nature:</span>"
-                                f"<span>{entry['nature'].replace('Nature: ', '')}</span></div>"
-                            )
-                        card_html += "</div>"  # sprite-info
-                    card_html += "</div>"  # left col
+                ordered_stats = ["HP", "Atk", "Def", "SpA", "SpD", "Spe"]
+                rows = []
+                for stat in ordered_stats:
+                    val = evs_map[stat]
+                    rows.append(f"<div class='team-evs-row'>{stat}: {val}</div>")
+                card_html += "<div class='team-evs-table'>" + "".join(rows) + "</div>"
+            card_html += "</div>"  # evs col
 
-                    # MIDDLE COLUMN: moves
-                    card_html += "<div class='team-moves-col'>"
-                    card_html += "<div class='team-moves-title'>Moves</div>"
-                    if moves_html:
-                        card_html += f"<div class='team-moves'>{moves_html}</div>"
-                    card_html += "</div>"  # moves col
+            card_html += "</div>"  # team-card-body
+            card_html += "</div>"  # team-card
+            
+            grid_html += card_html
 
-                    # RIGHT COLUMN: EVs as labeled rows
-                    card_html += "<div class='team-evs-col'>"
-                    card_html += "<div class='team-evs-title'>EVs</div>"
-                    if entry["evs"]:
-                        raw = entry["evs"].replace("EVs: ", "")
-                        parts = [p for p in raw.split(" / ") if p]
-                        evs_map = {"HP": 0, "Atk": 0, "Def": 0, "SpA": 0, "SpD": 0, "Spe": 0}
-                        for p in parts:
-                            sub = p.split()
-                            if len(sub) != 2:
-                                continue
-                            try:
-                                val = int(sub[0])
-                            except ValueError:
-                                continue
-                            stat = sub[1]
-                            if stat in evs_map:
-                                evs_map[stat] = val
-
-                        ordered_stats = ["HP", "Atk", "Def", "SpA", "SpD", "Spe"]
-                        rows = []
-                        for stat in ordered_stats:
-                            val = evs_map[stat]
-                            rows.append(f"<div class='team-evs-row'>{stat}: {val}</div>")
-                        card_html += "<div class='team-evs-table'>" + "".join(rows) + "</div>"
-                    card_html += "</div>"  # evs col
-
-                    card_html += "</div>"  # team-card-body
-
-                    card_html += "</div>"  # team-card
-
-                    st.markdown(card_html, unsafe_allow_html=True)
-                idx += 1
-        st.markdown('</div>', unsafe_allow_html=True)
+        grid_html += "</div>" # Close grid container
+        st.markdown(grid_html, unsafe_allow_html=True)
 
         # Raw Showdown text hidden by default inside an expander
         with st.expander("Show raw Showdown team"):
             st.code(team_text, language="text")
+
+    # Footer
+    current_year = datetime.now().year
+    st.markdown(
+        f"""
+        <div class="footer">
+            Pokémon and All Respective Names are Trademark & © of Nintendo 1996-{current_year}.<br>
+            Pokemon Team Generator is not affiliated with Nintendo, Game Freak, or The Pokémon Company.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 if __name__ == "__main__":
