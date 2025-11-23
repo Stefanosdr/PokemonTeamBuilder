@@ -317,7 +317,59 @@ def generate_random_team_for_tier(tier: str, include_lower_tiers: bool = True) -
 
 
 def main() -> None:
-    st.set_page_config(page_title="Pokemon Team Generator", layout="wide")
+    st.set_page_config(
+        page_title="Pokemon Team Generator - Competitive Team Builder for All Tiers",
+        page_icon="⚔️",
+        layout="wide",
+        menu_items={
+            'About': "Generate competitive Pokémon teams for any tier instantly. Free tool with Pokepaste export."
+        }
+    )
+    
+    # SEO Meta Tags
+    st.markdown("""
+        <meta name="description" content="Generate competitive Pokémon teams for any tier instantly. Free Pokémon Team Builder with Showdown export for OU, UU, RU, NU, PU, ZU, and more tiers.">
+        <meta name="keywords" content="pokemon team builder, pokemon team generator, competitive pokemon, showdown team builder, OU team builder, UU team builder, pokemon strategy, smogon team builder, random pokemon team, pokepaste">
+        <meta name="author" content="PokemonTeamBuilder">
+        <meta name="robots" content="index, follow">
+        
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website">
+        <meta property="og:title" content="Pokemon Team Generator - Competitive Team Builder">
+        <meta property="og:description" content="Instantly create competitive teams for any tier with Pokepaste export. Supports OU, UU, RU, NU, PU, ZU and more.">
+        
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image">
+        <meta property="twitter:title" content="Pokemon Team Generator - Competitive Team Builder">
+        <meta property="twitter:description" content="Instantly create competitive teams for any tier with Pokepaste export.">
+        <meta property="og:url" content="https://pokemonteamgenerator.streamlit.app">
+        <link rel="canonical" href="https://pokemonteamgenerator.streamlit.app">
+    """, unsafe_allow_html=True)
+    
+    # Structured Data (Schema.org)
+    st.markdown("""
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          "name": "Pokemon Team Generator",
+          "description": "Generate competitive Pokémon teams for any tier with instant Pokepaste export",
+          "applicationCategory": "GameApplication",
+          "operatingSystem": "Web",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "Random team generation for all competitive tiers",
+            "Pokepaste export integration",
+            "Showdown format support",
+            "Support for OU, UU, RU, NU, PU, ZU, Uber, AG tiers"
+          ]
+        }
+        </script>
+    """, unsafe_allow_html=True)
 
     # Load custom CSS for prettier team grid styling
     css_path = Path(__file__).with_name("streamlit_styles.css")

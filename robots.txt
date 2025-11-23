@@ -1,0 +1,11 @@
+# Robots.txt for Pokemon Team Generator
+# This file tells search engines which pages they can crawl
+
+User-agent: *
+Allow: /
+
+# Disallow crawling of any admin or private pages (if any exist in the future)
+# Disallow: /admin/
+
+# Sitemap location (update with your actual deployed URL)
+Sitemap: https://pokemonteamgenerator.streamlit.app/sitemap.xml
