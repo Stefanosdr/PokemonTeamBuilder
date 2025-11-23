@@ -84,6 +84,14 @@ def _generate_sprite_url(pokemon_name: str) -> str:
     return f"https://play.pokemonshowdown.com/sprites/gen5/{safe_name}.png"
 
 
+def _generate_smogon_url(pokemon_name: str) -> str:
+    """Generate the Smogon Strategy Dex URL for a given Pokemon."""
+    # Smogon slugs are typically lowercase, spaces to hyphens, remove special chars
+    # e.g. "Iron Bundle" -> "iron-bundle", "Chi-Yu" -> "chi-yu"
+    slug = pokemon_name.lower().replace(" ", "-").replace(".", "").replace(":", "").replace("%", "").replace("'", "")
+    return f"https://www.smogon.com/dex/sv/pokemon/{slug}/"
+
+
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "pokemon_strategies.db"
 
@@ -428,9 +436,11 @@ def main() -> None:
             )
 
             # Build a Showdown-inspired card layout
+            smogon_url = _generate_smogon_url(entry['name'])
             card_html = "<div class='team-card'>"
             card_html += "<div class='team-card-header'>"
             card_html += f"<span class='team-name'>{entry['name']}</span>"
+            card_html += f"<a href='{smogon_url}' target='_blank' class='smogon-link' title='View Smogon Strategy'>Smogon ↗</a>"
             card_html += "</div>"  # header
 
             card_html += "<div class='team-card-body'>"
