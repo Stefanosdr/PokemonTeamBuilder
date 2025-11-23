@@ -27,3 +27,17 @@ sv_items.json
 tiers.json
 tier_strategies/
 pokepaste_guidelines.txt
+
+# Optional entry point script
+main.py
+# Temporary and Debug Scripts
+check_moltres.py
+analyze_duplicates.py
+debug_db.py
+clean_db.py
+verify_tier_logic.py
+
+# Temporary Databases and Backups
+temp_check.db
+temp_debug.db
+*.bak
