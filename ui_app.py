@@ -65,29 +65,23 @@ def _parse_showdown_team(team_text: str) -> list[dict]:
     return team
 
 
-def _fetch_pokemon_image_urls_from_pokepaste(paste_url: str) -> list[str]:
-    """Fetch Pokémon sprite URLs from a Pokepaste page.
-
-    Returns a list of absolute image URLs in team order.
+def _generate_sprite_url(pokemon_name: str) -> str:
+    """Generate the sprite URL for a given Pokemon name locally.
+    
+    Uses the Pokemon Showdown sprite repository format.
     """
-    try:
-        resp = requests.get(paste_url, timeout=15)
-        resp.raise_for_status()
-    except Exception:
-        return []
-
-    soup = BeautifulSoup(resp.text, "html.parser")
-    imgs = soup.find_all("img", class_="img-pokemon")
-    urls: list[str] = []
-    for img in imgs:
-        src = img.get("src")
-        if not src:
-            continue
-        if src.startswith("http://") or src.startswith("https://"):
-            urls.append(src)
-        else:
-            urls.append("https://pokepast.es" + src)
-    return urls
+    # Normalize name for filename: lowercase, remove special chars, spaces to hyphens
+    # This is a heuristic that covers most cases.
+    safe_name = pokemon_name.lower().replace(" ", "-").replace(".", "").replace(":", "").replace("%", "").replace("'", "")
+    
+    # Handle specific edge cases if needed, but standard Showdown format is fairly consistent
+    # e.g. "Farigiraf" -> "farigiraf", "Iron Bundle" -> "iron-bundle"
+    
+    # Using Gen 5 animated sprites for a premium look, falling back to static if needed by the browser
+    # But for stability and consistency with the previous look (which used Gen 5 static), let's stick to Gen 5 static or animated.
+    # The user liked the previous look. Pokepaste uses: https://play.pokemonshowdown.com/sprites/gen5/{name}.png
+    
+    return f"https://play.pokemonshowdown.com/sprites/gen5/{safe_name}.png"
 
 
 ROOT = Path(__file__).resolve().parent
@@ -100,6 +94,7 @@ def _get_db_connection():
     return conn
 
 
+@st.cache_data(ttl=3600)
 def _load_available_tiers() -> list[str]:
     """Return a list of tiers that exist in the database."""
     if not DB_PATH.exists():
@@ -417,9 +412,10 @@ def main() -> None:
         with banner_center:
             st.success(f"Team generated!  [Open in Pokepaste]({paste_url})")
 
-        # Parse the team and fetch sprite URLs from Pokepaste
+        # Parse the team and generate sprite URLs locally
         team_entries = _parse_showdown_team(team_text)
-        image_urls = _fetch_pokemon_image_urls_from_pokepaste(paste_url)
+        # image_urls = _fetch_pokemon_image_urls_from_pokepaste(paste_url) # Removed for performance
+        image_urls = [_generate_sprite_url(entry["name"]) for entry in team_entries]
 
         # Generate HTML for the grid
         grid_html = '<div class="team-grid-container">'
