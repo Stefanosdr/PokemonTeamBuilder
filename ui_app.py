@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from bs4 import BeautifulSoup
 
 from pokepaste_uploader import showdown_to_pokepaste
@@ -520,6 +521,40 @@ def main() -> None:
 
         # Raw Showdown text hidden by default inside an expander
         with st.expander("Show raw Showdown team"):
+            copy_btn_id = f"copy-btn-{random.randint(0, 1_000_000)}"
+            copy_msg_id = f"copy-msg-{random.randint(0, 1_000_000)}"
+            components.html(
+                f"""
+                <div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px 0;">
+                  <button id="{copy_btn_id}" style="
+                    background:#4f46e5;
+                    color:white;
+                    border:0;
+                    border-radius:10px;
+                    padding:10px 14px;
+                    font-weight:700;
+                    cursor:pointer;
+                    box-shadow:0 6px 14px rgba(79,70,229,0.25);
+                  ">Copy Showdown Team</button>
+                  <span id="{copy_msg_id}" style="color:#94a3b8;font-weight:600;"></span>
+                </div>
+                <script>
+                  const btn = document.getElementById({json.dumps(copy_btn_id)});
+                  const msg = document.getElementById({json.dumps(copy_msg_id)});
+                  const text = {json.dumps(team_text)};
+                  btn.addEventListener('click', async () => {{
+                    try {{
+                      await navigator.clipboard.writeText(text);
+                      msg.textContent = 'Copied!';
+                      setTimeout(() => msg.textContent = '', 1500);
+                    }} catch (e) {{
+                      msg.textContent = 'Copy failed';
+                    }}
+                  }});
+                </script>
+                """,
+                height=60,
+            )
             st.code(team_text, language="text")
 
     # Footer
