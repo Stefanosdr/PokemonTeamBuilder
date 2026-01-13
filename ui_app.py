@@ -9,11 +9,16 @@ import streamlit as st
 import streamlit.components.v1 as components
 from bs4 import BeautifulSoup
 
+from db import BANLIST_TIERS, DB_PATH, EXCLUDED_TIERS, TIER_ORDER, is_user_selectable_tier
+from pokepaste_parser import parse_pokepaste, parse_showdown_team_text
+from team_threat_scoring import (
+    TeamThreatScoringError,
+    infer_team_tier_from_pokepaste_team,
+    score_showdown_team_text_vs_top_threats,
+    score_team_vs_top_threats,
+)
+from tier_threats import ThreatsError, find_latest_movesets_month_dir, get_moveset_json_files_by_elo
 from pokepaste_uploader import showdown_to_pokepaste
-
-
-TIER_ORDER = ["AG", "Uber", "OU", "UU", "RU", "NU", "PU", "ZU"]
-EXCLUDED_TIERS = ["NFE", "LC"]  # Tiers to exclude from higher tier team generation
 
 
 def _parse_showdown_team(team_text: str) -> list[dict]:
@@ -92,11 +97,6 @@ def _generate_smogon_url(pokemon_name: str) -> str:
     slug = pokemon_name.lower().replace(" ", "-").replace(".", "").replace(":", "").replace("%", "").replace("'", "")
     return f"https://www.smogon.com/dex/sv/pokemon/{slug}/"
 
-
-ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "pokemon_strategies.db"
-
-
 def _get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -124,6 +124,7 @@ def _load_available_tiers() -> list[str]:
         unknown_tiers.sort()
         
         sorted_tiers = known_tiers + unknown_tiers
+        sorted_tiers = [t for t in sorted_tiers if is_user_selectable_tier(t)]
         return sorted_tiers if sorted_tiers else ["OU"]
     except Exception:
         return ["OU"]
@@ -246,6 +247,9 @@ def _build_random_team_for_tier(tier: str, num_pokemon: int = 6, include_lower_t
     
     If include_lower_tiers is True, allows Pokemon from the selected tier and any lower tiers.
     """
+    if tier in BANLIST_TIERS:
+        raise ValueError(f"Banlist tiers are not selectable formats: {tier}")
+
     conn = _get_db_connection()
     try:
         cursor = conn.cursor()
@@ -321,6 +325,334 @@ def generate_random_team_for_tier(tier: str, include_lower_tiers: bool = True) -
     return team_text, url
 
 
+def _render_team_generator_tab() -> None:
+    """Render the Team Generator tab UI."""
+
+    st.markdown(
+        """
+        <div class="main-description">
+            Welcome to the <strong>Pokemon Team Generator</strong>! 🚀<br>
+            Instantly create competitive teams for any tier. Simply select your desired tier, 
+            choose whether to include lower-tier Pokemon, and click <strong>Generate</strong>. 
+            Your team will be ready in seconds, complete with a Pokepaste link for easy export to Showdown.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Tier selector
+    tiers = _load_available_tiers()
+    tier_index = 0
+    if "OU" in tiers:
+        tier_index = tiers.index("OU")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        tier = st.selectbox("Select tier", options=tiers, index=tier_index)
+        include_lower = st.checkbox("Include Pokemon from lower tiers", value=True)
+        generate_btn = st.button("Generate random team", width="stretch")
+
+    if not generate_btn:
+        return
+
+    with st.spinner("Generating team and uploading to Pokepaste..."):
+        try:
+            team_text, paste_url = generate_random_team_for_tier(tier, include_lower_tiers=include_lower)
+        except Exception as exc:  # pragma: no cover - UI error path
+            st.error(f"Failed to generate team or upload to Pokepaste: {exc}")
+            return
+
+    # Success banner with inline Pokepaste link, constrained width
+    banner_left, banner_center, banner_right = st.columns([1, 3, 1])
+    with banner_center:
+        st.success(f"Team generated!  [Open in Pokepaste]({paste_url})")
+
+    # Parse the team and generate sprite URLs locally
+    team_entries = _parse_showdown_team(team_text)
+    image_urls = [_generate_sprite_url(entry["name"]) for entry in team_entries]
+
+    # Generate HTML for the grid
+    grid_html = '<div class="team-grid-container">'
+
+    for idx, entry in enumerate(team_entries):
+        img_url = image_urls[idx] if idx < len(image_urls) else None
+
+        moves_html = "".join(
+            f"<span class='move-pill'>{m}</span>" for m in entry["moves"]
+        )
+
+        # Build a Showdown-inspired card layout
+        smogon_url = _generate_smogon_url(entry["name"])
+        card_html = "<div class='team-card'>"
+        card_html += "<div class='team-card-header'>"
+        card_html += f"<span class='team-name'>{entry['name']}</span>"
+        card_html += f"<a href='{smogon_url}' target='_blank' class='smogon-link' title='View Smogon Strategy'>Smogon ↗</a>"
+        card_html += "</div>"  # header
+
+        card_html += "<div class='team-card-body'>"
+
+        # LEFT COLUMN: sprite + basic info
+        card_html += "<div>"  # left col wrapper
+        if img_url:
+            card_html += "<div class='team-sprite'>"
+            card_html += f"<img src='{img_url}' alt='{entry['name']}'>"
+            card_html += "</div>"
+        if any([entry["item"], entry["ability"], entry["tera_type"], entry["nature"]]):
+            card_html += "<div class='sprite-info'>"
+            if entry["item"]:
+                card_html += (
+                    "<div class='sprite-info-row'><span class='detail-label'>Item:</span>"
+                    f"<span>{entry['item']}</span></div>"
+                )
+            if entry["ability"]:
+                card_html += (
+                    "<div class='sprite-info-row'><span class='detail-label'>Ability:</span>"
+                    f"<span>{entry['ability']}</span></div>"
+                )
+            if entry["tera_type"]:
+                card_html += (
+                    "<div class='sprite-info-row'><span class='detail-label'>Tera:</span>"
+                    f"<span>{entry['tera_type']}</span></div>"
+                )
+            if entry["nature"]:
+                card_html += (
+                    "<div class='sprite-info-row'><span class='detail-label'>Nature:</span>"
+                    f"<span>{entry['nature'].replace('Nature: ', '')}</span></div>"
+                )
+            card_html += "</div>"  # sprite-info
+        card_html += "</div>"  # left col
+
+        # MIDDLE COLUMN: moves
+        card_html += "<div class='team-moves-col'>"
+        card_html += "<div class='team-moves-title'>Moves</div>"
+        if moves_html:
+            card_html += f"<div class='team-moves'>{moves_html}</div>"
+        card_html += "</div>"  # moves col
+
+        # RIGHT COLUMN: EVs as labeled rows
+        card_html += "<div class='team-evs-col'>"
+        card_html += "<div class='team-evs-title'>EVs</div>"
+        if entry["evs"]:
+            raw = entry["evs"].replace("EVs: ", "")
+            parts = [p for p in raw.split(" / ") if p]
+            evs_map = {"HP": 0, "Atk": 0, "Def": 0, "SpA": 0, "SpD": 0, "Spe": 0}
+            for p in parts:
+                sub = p.split()
+                if len(sub) != 2:
+                    continue
+                try:
+                    val = int(sub[0])
+                except ValueError:
+                    continue
+                stat = sub[1]
+                if stat in evs_map:
+                    evs_map[stat] = val
+
+            ordered_stats = ["HP", "Atk", "Def", "SpA", "SpD", "Spe"]
+            rows = []
+            for stat in ordered_stats:
+                val = evs_map[stat]
+                rows.append(f"<div class='team-evs-row'>{stat}: {val}</div>")
+            card_html += "<div class='team-evs-table'>" + "".join(rows) + "</div>"
+        card_html += "</div>"  # evs col
+
+        card_html += "</div>"  # team-card-body
+        card_html += "</div>"  # team-card
+
+        grid_html += card_html
+
+    grid_html += "</div>"  # Close grid container
+    st.markdown(grid_html, unsafe_allow_html=True)
+
+    with st.expander("Show raw Showdown team"):
+        copy_btn_id = f"copy-btn-{random.randint(0, 1_000_000)}"
+        copy_msg_id = f"copy-msg-{random.randint(0, 1_000_000)}"
+        components.html(
+            f"""
+            <div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px 0;">
+              <button id="{copy_btn_id}" style="
+                background:#4f46e5;
+                color:white;
+                border:0;
+                border-radius:10px;
+                padding:10px 14px;
+                font-weight:700;
+                cursor:pointer;
+                box-shadow:0 6px 14px rgba(79,70,229,0.25);
+              ">Copy Showdown Team</button>
+              <span id="{copy_msg_id}" style="color:#94a3b8;font-weight:600;"></span>
+            </div>
+            <script>
+              const btn = document.getElementById({json.dumps(copy_btn_id)});
+              const msg = document.getElementById({json.dumps(copy_msg_id)});
+              const text = {json.dumps(team_text)};
+              btn.addEventListener('click', async () => {{
+                try {{
+                  await navigator.clipboard.writeText(text);
+                  msg.textContent = 'Copied!';
+                  setTimeout(() => msg.textContent = '', 1500);
+                }} catch (e) {{
+                  msg.textContent = 'Copy failed';
+                }}
+              }});
+            </script>
+            """,
+            height=60,
+        )
+        st.code(team_text, language="text")
+
+
+def _render_threat_check_tab() -> None:
+    """Render the Threat Check tab UI."""
+
+    st.markdown(
+        """
+        <div class="main-description">
+            <strong>Threat Check</strong> analyzes your team against the most-used Pokémon in the inferred tier.
+            It scores each team member versus the top threats (by usage), split by Elo bracket.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    input_mode = st.radio("Team input", options=["Pokepaste link", "Paste Showdown team"], horizontal=True)
+    pokepaste_url = ""
+    showdown_text = ""
+    if input_mode == "Pokepaste link":
+        pokepaste_url = st.text_input("Pokepaste URL", placeholder="https://pokepast.es/<id>")
+    else:
+        showdown_text = st.text_area("Paste Showdown team text", height=220)
+
+    month_override = st.text_input("Month override (optional)", placeholder="2025-11")
+
+    # Build mapping Elo -> JSON files (and All -> all files) after we can infer tier.
+    elo_to_files: dict[str, list[Path]] | None = None
+    inferred_tier: str | None = None
+    used_month: str | None = None
+
+    if input_mode == "Pokepaste link" and pokepaste_url.strip():
+        try:
+            team_dict = parse_pokepaste(pokepaste_url.strip())
+            inferred_tier = infer_team_tier_from_pokepaste_team(team_dict)
+        except Exception:
+            inferred_tier = None
+    elif input_mode != "Pokepaste link" and showdown_text.strip():
+        try:
+            team_dict = parse_showdown_team_text(showdown_text)
+            inferred_tier = infer_team_tier_from_pokepaste_team(team_dict)
+        except Exception:
+            inferred_tier = None
+
+    if inferred_tier:
+        root = Path(__file__).resolve().parent / "movesets_json"
+        try:
+            month_dir = None
+            if month_override.strip():
+                month_dir = month_override.strip()
+            month_path = find_latest_movesets_month_dir(root) if not month_dir else (root / month_dir if not Path(month_dir).is_absolute() else Path(month_dir))
+            used_month = month_path.name
+            elo_to_files = get_moveset_json_files_by_elo(inferred_tier, movesets_root=root, month_dir=month_dir or month_path)
+        except Exception:
+            elo_to_files = None
+
+    if inferred_tier:
+        st.caption(f"Inferred tier: {inferred_tier}")
+    if used_month:
+        st.caption(f"Movesets month: {used_month}")
+
+    elo_keys = list(elo_to_files.keys()) if elo_to_files else ["All"]
+    if "All" not in elo_keys:
+        elo_keys = ["All"] + elo_keys
+    default_elo = "1630" if "1630" in elo_keys else "All"
+
+    # Put controls in a form to avoid Streamlit rerunning on every +/- click (reduces UI flicker).
+    with st.form(key="threat_check_form"):
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            n = st.number_input("Top N threats", min_value=1, max_value=50, value=10, step=1)
+        with c2:
+            elo_choice = st.selectbox("Elo", options=elo_keys, index=elo_keys.index(default_elo) if default_elo in elo_keys else 0)
+        with c3:
+            threat_move_limit = st.number_input("Threat move limit", min_value=1, max_value=50, value=20, step=1)
+        with c4:
+            insights_k = st.number_input("Worst threats per mon", min_value=0, max_value=10, value=5, step=1)
+
+        submitted = st.form_submit_button("Run Threat Check", width="stretch")
+
+    if not submitted:
+        return
+
+    if input_mode == "Pokepaste link" and not pokepaste_url.strip():
+        st.error("Please enter a Pokepaste URL")
+        return
+    if input_mode != "Pokepaste link" and not showdown_text.strip():
+        st.error("Please paste a Showdown team")
+        return
+
+    elo_arg = None if str(elo_choice) == "All" else int(str(elo_choice))
+    status = st.status("Loading threat data...", expanded=False)
+    with st.spinner("Scoring team vs threats..."):
+        try:
+            status.update(label="Loading threat data...", state="running")
+            if input_mode == "Pokepaste link":
+                payload = score_team_vs_top_threats(
+                    pokepaste_url=pokepaste_url.strip(),
+                    n=int(n),
+                    month_dir=month_override.strip() or None,
+                    elo=elo_arg,
+                    threat_move_limit=int(threat_move_limit),
+                    insights_k=int(insights_k),
+                    include_details=False,
+                )
+            else:
+                payload = score_showdown_team_text_vs_top_threats(
+                    team_text=showdown_text,
+                    n=int(n),
+                    month_dir=month_override.strip() or None,
+                    elo=elo_arg,
+                    threat_move_limit=int(threat_move_limit),
+                    insights_k=int(insights_k),
+                    include_details=False,
+                )
+        except (TeamThreatScoringError, ThreatsError, FileNotFoundError) as exc:
+            st.error(str(exc))
+            return
+        finally:
+            status.update(label="Threat data loaded", state="complete")
+
+    st.success(f"Inferred tier: {payload.get('inferred_tier')}")
+    md = payload.get("month_dir")
+    if isinstance(md, str) and md.strip():
+        st.caption(f"Movesets month: {Path(md).name}")
+
+    by_elo = payload.get("by_elo") or {}
+    if isinstance(by_elo, dict):
+        for elo_key, block in by_elo.items():
+            if not isinstance(block, dict):
+                continue
+            team_score = block.get("team_score")
+            st.subheader(f"Elo {elo_key} — Team score: {team_score}")
+            rows = []
+            for r in block.get("team_scores") or []:
+                if not isinstance(r, dict):
+                    continue
+                worst = r.get("worst_threats") or []
+                worst_txt = ""
+                if isinstance(worst, list):
+                    worst_txt = ", ".join(
+                        f"{w.get('threat')} ({w.get('ratio')})" for w in worst if isinstance(w, dict)
+                    )
+                rows.append(
+                    {
+                        "Pokemon": r.get("pokemon"),
+                        "Score": r.get("score"),
+                        "Worst threats": worst_txt,
+                    }
+                )
+            st.dataframe(rows, width="stretch", hide_index=True)
+
+
+
 def main() -> None:
     st.set_page_config(
         page_title="Pokemon Team Generator - Competitive Team Builder for All Tiers",
@@ -384,178 +716,12 @@ def main() -> None:
 
     # Custom Header & Description
     st.markdown('<h1 class="main-header">Pokemon Team Generator</h1>', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div class="main-description">
-            Welcome to the <strong>Pokemon Team Generator</strong>! 🚀<br>
-            Instantly create competitive teams for any tier. Simply select your desired tier, 
-            choose whether to include lower-tier Pokemon, and click <strong>Generate</strong>. 
-            Your team will be ready in seconds, complete with a Pokepaste link for easy export to Showdown.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
-    # Tier selector
-    tiers = _load_available_tiers()
-    tier_index = 0
-    if "OU" in tiers:
-        tier_index = tiers.index("OU")
-        
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        tier = st.selectbox("Select tier", options=tiers, index=tier_index)
-        include_lower = st.checkbox("Include Pokemon from lower tiers", value=True)
-        generate_btn = st.button("Generate random team", use_container_width=True)
-
-    if generate_btn:
-        with st.spinner("Generating team and uploading to Pokepaste..."):
-            try:
-                team_text, paste_url = generate_random_team_for_tier(tier, include_lower_tiers=include_lower)
-            except Exception as exc:  # pragma: no cover - UI error path
-                st.error(f"Failed to generate team or upload to Pokepaste: {exc}")
-                return
-
-        # Success banner with inline Pokepaste link, constrained width
-        banner_left, banner_center, banner_right = st.columns([1, 3, 1])
-        with banner_center:
-            st.success(f"Team generated!  [Open in Pokepaste]({paste_url})")
-
-        # Parse the team and generate sprite URLs locally
-        team_entries = _parse_showdown_team(team_text)
-        # image_urls = _fetch_pokemon_image_urls_from_pokepaste(paste_url) # Removed for performance
-        image_urls = [_generate_sprite_url(entry["name"]) for entry in team_entries]
-
-        # Generate HTML for the grid
-        grid_html = '<div class="team-grid-container">'
-        
-        for idx, entry in enumerate(team_entries):
-            img_url = image_urls[idx] if idx < len(image_urls) else None
-            
-            moves_html = "".join(
-                f"<span class='move-pill'>{m}</span>" for m in entry["moves"]
-            )
-
-            # Build a Showdown-inspired card layout
-            smogon_url = _generate_smogon_url(entry['name'])
-            card_html = "<div class='team-card'>"
-            card_html += "<div class='team-card-header'>"
-            card_html += f"<span class='team-name'>{entry['name']}</span>"
-            card_html += f"<a href='{smogon_url}' target='_blank' class='smogon-link' title='View Smogon Strategy'>Smogon ↗</a>"
-            card_html += "</div>"  # header
-
-            card_html += "<div class='team-card-body'>"
-
-            # LEFT COLUMN: sprite + basic info
-            card_html += "<div>"  # left col wrapper
-            if img_url:
-                card_html += "<div class='team-sprite'>"
-                card_html += f"<img src='{img_url}' alt='{entry['name']}'>"
-                card_html += "</div>"
-            if any([entry["item"], entry["ability"], entry["tera_type"], entry["nature"]]):
-                card_html += "<div class='sprite-info'>"
-                if entry["item"]:
-                    card_html += (
-                        "<div class='sprite-info-row'><span class='detail-label'>Item:</span>"
-                        f"<span>{entry['item']}</span></div>"
-                    )
-                if entry["ability"]:
-                    card_html += (
-                        "<div class='sprite-info-row'><span class='detail-label'>Ability:</span>"
-                        f"<span>{entry['ability']}</span></div>"
-                    )
-                if entry["tera_type"]:
-                    card_html += (
-                        "<div class='sprite-info-row'><span class='detail-label'>Tera:</span>"
-                        f"<span>{entry['tera_type']}</span></div>"
-                    )
-                if entry["nature"]:
-                    card_html += (
-                        "<div class='sprite-info-row'><span class='detail-label'>Nature:</span>"
-                        f"<span>{entry['nature'].replace('Nature: ', '')}</span></div>"
-                    )
-                card_html += "</div>"  # sprite-info
-            card_html += "</div>"  # left col
-
-            # MIDDLE COLUMN: moves
-            card_html += "<div class='team-moves-col'>"
-            card_html += "<div class='team-moves-title'>Moves</div>"
-            if moves_html:
-                card_html += f"<div class='team-moves'>{moves_html}</div>"
-            card_html += "</div>"  # moves col
-
-            # RIGHT COLUMN: EVs as labeled rows
-            card_html += "<div class='team-evs-col'>"
-            card_html += "<div class='team-evs-title'>EVs</div>"
-            if entry["evs"]:
-                raw = entry["evs"].replace("EVs: ", "")
-                parts = [p for p in raw.split(" / ") if p]
-                evs_map = {"HP": 0, "Atk": 0, "Def": 0, "SpA": 0, "SpD": 0, "Spe": 0}
-                for p in parts:
-                    sub = p.split()
-                    if len(sub) != 2:
-                        continue
-                    try:
-                        val = int(sub[0])
-                    except ValueError:
-                        continue
-                    stat = sub[1]
-                    if stat in evs_map:
-                        evs_map[stat] = val
-
-                ordered_stats = ["HP", "Atk", "Def", "SpA", "SpD", "Spe"]
-                rows = []
-                for stat in ordered_stats:
-                    val = evs_map[stat]
-                    rows.append(f"<div class='team-evs-row'>{stat}: {val}</div>")
-                card_html += "<div class='team-evs-table'>" + "".join(rows) + "</div>"
-            card_html += "</div>"  # evs col
-
-            card_html += "</div>"  # team-card-body
-            card_html += "</div>"  # team-card
-            
-            grid_html += card_html
-
-        grid_html += "</div>" # Close grid container
-        st.markdown(grid_html, unsafe_allow_html=True)
-
-        # Raw Showdown text hidden by default inside an expander
-        with st.expander("Show raw Showdown team"):
-            copy_btn_id = f"copy-btn-{random.randint(0, 1_000_000)}"
-            copy_msg_id = f"copy-msg-{random.randint(0, 1_000_000)}"
-            components.html(
-                f"""
-                <div style="display:flex;align-items:center;gap:12px;margin:6px 0 10px 0;">
-                  <button id="{copy_btn_id}" style="
-                    background:#4f46e5;
-                    color:white;
-                    border:0;
-                    border-radius:10px;
-                    padding:10px 14px;
-                    font-weight:700;
-                    cursor:pointer;
-                    box-shadow:0 6px 14px rgba(79,70,229,0.25);
-                  ">Copy Showdown Team</button>
-                  <span id="{copy_msg_id}" style="color:#94a3b8;font-weight:600;"></span>
-                </div>
-                <script>
-                  const btn = document.getElementById({json.dumps(copy_btn_id)});
-                  const msg = document.getElementById({json.dumps(copy_msg_id)});
-                  const text = {json.dumps(team_text)};
-                  btn.addEventListener('click', async () => {{
-                    try {{
-                      await navigator.clipboard.writeText(text);
-                      msg.textContent = 'Copied!';
-                      setTimeout(() => msg.textContent = '', 1500);
-                    }} catch (e) {{
-                      msg.textContent = 'Copy failed';
-                    }}
-                  }});
-                </script>
-                """,
-                height=60,
-            )
-            st.code(team_text, language="text")
+    tabs = st.tabs(["Team Generator", "Threat Check"])
+    with tabs[0]:
+        _render_team_generator_tab()
+    with tabs[1]:
+        _render_threat_check_tab()
 
     # Footer
     current_year = datetime.now().year

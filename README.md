@@ -45,9 +45,46 @@ A Streamlit-based application that generates random competitive Pokémon teams u
     - Click "Generate random team".
     - View the generated team visually or click the PokePaste link.
 
+## Discord Bot
+
+This repository also includes a Discord bot entry point that can generate and post teams directly in Discord.
+
+### Commands
+
+- `!gen <tier>`
+
+Generates a random team for the requested tier **only** (no lower-tier Pokémon) and returns:
+
+- The Showdown importable team text
+- A Pokepaste link
+
+### Setup
+
+1. Create a Discord application + bot in the Discord Developer Portal.
+2. Enable the privileged intent: **Message Content Intent**.
+3. Invite the bot to your server.
+
+### Run
+
+Set the bot token in an environment variable and run:
+
+```bash
+set DISCORD_BOT_TOKEN=YOUR_TOKEN_HERE
+python discord_bot.py
+```
+
+If you are using `uv`, you can also run it without manually activating the venv:
+
+```bash
+set DISCORD_BOT_TOKEN=YOUR_TOKEN_HERE
+uv run python discord_bot.py
+```
+
 ## Project Structure
 
 - `ui_app.py`: The main Streamlit application file.
+- `discord_bot.py`: Discord bot entry point.
+- `team_generator.py`: Shared team-generation logic used by Streamlit and the Discord bot.
 - `pokemon_strategies.db`: SQLite database containing Pokémon builds and tier information.
 - `pokepaste_uploader.py`: Helper script for uploading teams to PokePaste.
 - `requirements.txt`: List of Python dependencies.

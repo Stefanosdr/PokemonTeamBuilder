@@ -1,0 +1,307 @@
+[
+  {
+    "name": "Blaziken",
+    "url": "https://www.smogon.com/dex/sv/pokemon/blaziken/",
+    "slug": "blaziken"
+  },
+  {
+    "name": "Fire",
+    "url": "https://www.smogon.com/dex/sv/types/fire/",
+    "slug": null
+  },
+  {
+    "name": "Fighting",
+    "url": "https://www.smogon.com/dex/sv/types/fighting/",
+    "slug": null
+  },
+  {
+    "name": "Blaze",
+    "url": "https://www.smogon.com/dex/sv/abilities/blaze/",
+    "slug": null
+  },
+  {
+    "name": "Speed Boost",
+    "url": "https://www.smogon.com/dex/sv/abilities/speed-boost/",
+    "slug": null
+  },
+  {
+    "name": "UUBL",
+    "url": "https://www.smogon.com/dex/sv/formats/uubl/",
+    "slug": null
+  },
+  {
+    "name": "Garchomp",
+    "url": "https://www.smogon.com/dex/sv/pokemon/garchomp/",
+    "slug": "garchomp"
+  },
+  {
+    "name": "Dragon",
+    "url": "https://www.smogon.com/dex/sv/types/dragon/",
+    "slug": null
+  },
+  {
+    "name": "Ground",
+    "url": "https://www.smogon.com/dex/sv/types/ground/",
+    "slug": null
+  },
+  {
+    "name": "Sand Veil",
+    "url": "https://www.smogon.com/dex/sv/abilities/sand-veil/",
+    "slug": null
+  },
+  {
+    "name": "Rough Skin",
+    "url": "https://www.smogon.com/dex/sv/abilities/rough-skin/",
+    "slug": null
+  },
+  {
+    "name": "Hoopa-Unbound",
+    "url": "https://www.smogon.com/dex/sv/pokemon/hoopa-unbound/",
+    "slug": "hoopa-unbound"
+  },
+  {
+    "name": "Psychic",
+    "url": "https://www.smogon.com/dex/sv/types/psychic/",
+    "slug": null
+  },
+  {
+    "name": "Dark",
+    "url": "https://www.smogon.com/dex/sv/types/dark/",
+    "slug": null
+  },
+  {
+    "name": "Magician",
+    "url": "https://www.smogon.com/dex/sv/abilities/magician/",
+    "slug": null
+  },
+  {
+    "name": "Iron Boulder",
+    "url": "https://www.smogon.com/dex/sv/pokemon/iron-boulder/",
+    "slug": "iron-boulder"
+  },
+  {
+    "name": "Rock",
+    "url": "https://www.smogon.com/dex/sv/types/rock/",
+    "slug": null
+  },
+  {
+    "name": "Quark Drive",
+    "url": "https://www.smogon.com/dex/sv/abilities/quark-drive/",
+    "slug": null
+  },
+  {
+    "name": "Iron Hands",
+    "url": "https://www.smogon.com/dex/sv/pokemon/iron-hands/",
+    "slug": "iron-hands"
+  },
+  {
+    "name": "Electric",
+    "url": "https://www.smogon.com/dex/sv/types/electric/",
+    "slug": null
+  },
+  {
+    "name": "Kommo-o",
+    "url": "https://www.smogon.com/dex/sv/pokemon/kommo-o/",
+    "slug": "kommo-o"
+  },
+  {
+    "name": "Bulletproof",
+    "url": "https://www.smogon.com/dex/sv/abilities/bulletproof/",
+    "slug": null
+  },
+  {
+    "name": "Overcoat",
+    "url": "https://www.smogon.com/dex/sv/abilities/overcoat/",
+    "slug": null
+  },
+  {
+    "name": "Soundproof",
+    "url": "https://www.smogon.com/dex/sv/abilities/soundproof/",
+    "slug": null
+  },
+  {
+    "name": "Latias",
+    "url": "https://www.smogon.com/dex/sv/pokemon/latias/",
+    "slug": "latias"
+  },
+  {
+    "name": "Levitate",
+    "url": "https://www.smogon.com/dex/sv/abilities/levitate/",
+    "slug": null
+  },
+  {
+    "name": "Meowscarada",
+    "url": "https://www.smogon.com/dex/sv/pokemon/meowscarada/",
+    "slug": "meowscarada"
+  },
+  {
+    "name": "Grass",
+    "url": "https://www.smogon.com/dex/sv/types/grass/",
+    "slug": null
+  },
+  {
+    "name": "Overgrow",
+    "url": "https://www.smogon.com/dex/sv/abilities/overgrow/",
+    "slug": null
+  },
+  {
+    "name": "Protean",
+    "url": "https://www.smogon.com/dex/sv/abilities/protean/",
+    "slug": null
+  },
+  {
+    "name": "Moltres-Galar",
+    "url": "https://www.smogon.com/dex/sv/pokemon/moltres-galar/",
+    "slug": "moltres-galar"
+  },
+  {
+    "name": "Flying",
+    "url": "https://www.smogon.com/dex/sv/types/flying/",
+    "slug": null
+  },
+  {
+    "name": "Berserk",
+    "url": "https://www.smogon.com/dex/sv/abilities/berserk/",
+    "slug": null
+  },
+  {
+    "name": "Ogerpon-Cornerstone",
+    "url": "https://www.smogon.com/dex/sv/pokemon/ogerpon-cornerstone/",
+    "slug": "ogerpon-cornerstone"
+  },
+  {
+    "name": "Sturdy",
+    "url": "https://www.smogon.com/dex/sv/abilities/sturdy/",
+    "slug": null
+  },
+  {
+    "name": "Ogerpon-Cornerstone-Tera",
+    "url": "https://www.smogon.com/dex/sv/pokemon/ogerpon-cornerstone-tera/",
+    "slug": "ogerpon-cornerstone-tera"
+  },
+  {
+    "name": "Embody Aspect (Cornerstone)",
+    "url": "https://www.smogon.com/dex/sv/abilities/embody-aspect-cornerstone/",
+    "slug": null
+  },
+  {
+    "name": "Okidogi",
+    "url": "https://www.smogon.com/dex/sv/pokemon/okidogi/",
+    "slug": "okidogi"
+  },
+  {
+    "name": "Poison",
+    "url": "https://www.smogon.com/dex/sv/types/poison/",
+    "slug": null
+  },
+  {
+    "name": "Toxic Chain",
+    "url": "https://www.smogon.com/dex/sv/abilities/toxic-chain/",
+    "slug": null
+  },
+  {
+    "name": "Guard Dog",
+    "url": "https://www.smogon.com/dex/sv/abilities/guard-dog/",
+    "slug": null
+  },
+  {
+    "name": "Pelipper",
+    "url": "https://www.smogon.com/dex/sv/pokemon/pelipper/",
+    "slug": "pelipper"
+  },
+  {
+    "name": "Water",
+    "url": "https://www.smogon.com/dex/sv/types/water/",
+    "slug": null
+  },
+  {
+    "name": "Keen Eye",
+    "url": "https://www.smogon.com/dex/sv/abilities/keen-eye/",
+    "slug": null
+  },
+  {
+    "name": "Rain Dish",
+    "url": "https://www.smogon.com/dex/sv/abilities/rain-dish/",
+    "slug": null
+  },
+  {
+    "name": "Drizzle",
+    "url": "https://www.smogon.com/dex/sv/abilities/drizzle/",
+    "slug": null
+  },
+  {
+    "name": "Polteageist",
+    "url": "https://www.smogon.com/dex/sv/pokemon/polteageist/",
+    "slug": "polteageist"
+  },
+  {
+    "name": "Ghost",
+    "url": "https://www.smogon.com/dex/sv/types/ghost/",
+    "slug": null
+  },
+  {
+    "name": "Weak Armor",
+    "url": "https://www.smogon.com/dex/sv/abilities/weak-armor/",
+    "slug": null
+  },
+  {
+    "name": "Cursed Body",
+    "url": "https://www.smogon.com/dex/sv/abilities/cursed-body/",
+    "slug": null
+  },
+  {
+    "name": "Polteageist-Antique",
+    "url": "https://www.smogon.com/dex/sv/pokemon/polteageist-antique/",
+    "slug": "polteageist-antique"
+  },
+  {
+    "name": "Quaquaval",
+    "url": "https://www.smogon.com/dex/sv/pokemon/quaquaval/",
+    "slug": "quaquaval"
+  },
+  {
+    "name": "Torrent",
+    "url": "https://www.smogon.com/dex/sv/abilities/torrent/",
+    "slug": null
+  },
+  {
+    "name": "Moxie",
+    "url": "https://www.smogon.com/dex/sv/abilities/moxie/",
+    "slug": null
+  },
+  {
+    "name": "Ursaluna",
+    "url": "https://www.smogon.com/dex/sv/pokemon/ursaluna/",
+    "slug": "ursaluna"
+  },
+  {
+    "name": "Normal",
+    "url": "https://www.smogon.com/dex/sv/types/normal/",
+    "slug": null
+  },
+  {
+    "name": "Guts",
+    "url": "https://www.smogon.com/dex/sv/abilities/guts/",
+    "slug": null
+  },
+  {
+    "name": "Unnerve",
+    "url": "https://www.smogon.com/dex/sv/abilities/unnerve/",
+    "slug": null
+  },
+  {
+    "name": "Zarude",
+    "url": "https://www.smogon.com/dex/sv/pokemon/zarude/",
+    "slug": "zarude"
+  },
+  {
+    "name": "Leaf Guard",
+    "url": "https://www.smogon.com/dex/sv/abilities/leaf-guard/",
+    "slug": null
+  },
+  {
+    "name": "Zarude-Dada",
+    "url": "https://www.smogon.com/dex/sv/pokemon/zarude-dada/",
+    "slug": "zarude-dada"
+  }
+]
